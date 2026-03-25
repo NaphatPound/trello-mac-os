@@ -363,8 +363,24 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
               </div>
             </div>
 
-            {/* Labels, Members, Due Date Row */}
+            {/* Priority, Group, Labels, Members, Due Date Row */}
             <div className="card-detail-meta">
+              {card.priority && (
+                <div className="card-detail-meta-item">
+                  <span className="card-detail-meta-label">Priority</span>
+                  <span className={`card-detail-priority-badge card-detail-priority-badge--${card.priority}`}>
+                    {card.priority}
+                  </span>
+                </div>
+              )}
+              {card.taskGroup && (
+                <div className="card-detail-meta-item">
+                  <span className="card-detail-meta-label">Task Group</span>
+                  <span className="card-detail-group-badge">
+                    {card.taskGroup}{card.taskOrder ? ` — Step #${card.taskOrder}` : ''}
+                  </span>
+                </div>
+              )}
               {card.memberIds.length > 0 && (
                 <div className="card-detail-meta-item">
                   <span className="card-detail-meta-label">Members</span>
@@ -613,6 +629,23 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
           {/* Sidebar Actions */}
           <div className="card-detail-sidebar">
             <span className="card-detail-sidebar-title">Add to card</span>
+
+            {/* Priority */}
+            <div className="card-detail-priority-selector">
+              <span className="card-detail-priority-label">Priority</span>
+              <div className="card-detail-priority-options">
+                {(['critical', 'high', 'medium', 'low'] as const).map(p => (
+                  <button
+                    key={p}
+                    className={`card-detail-priority-option card-detail-priority-option--${p} ${card.priority === p ? 'card-detail-priority-option--active' : ''}`}
+                    onClick={() => updateCard(card.id, { priority: card.priority === p ? undefined : p })}
+                    title={p}
+                  >
+                    {p.charAt(0).toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Members */}
             <div style={{ position: 'relative' }}>

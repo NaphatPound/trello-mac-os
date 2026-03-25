@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil, Bot, Loader2, CircleCheck, CircleX } from 'lucide-react';
+import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil, Bot, Loader2, CircleCheck, CircleX, Flag, Layers } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { formatDueDate, getDueDateStatus, getChecklistProgress } from '../../utils/helpers';
@@ -56,6 +56,18 @@ const Card: React.FC<CardProps> = ({ card, board, isDragging = false }) => {
       )}
       <span className="card-title">{card.title}</span>
       <div className="card-badges">
+        {card.priority && (
+          <span className={`card-badge card-badge--priority card-badge--priority-${card.priority}`} title={`Priority: ${card.priority}`}>
+            <Flag size={12} />
+            <span>{card.priority}</span>
+          </span>
+        )}
+        {card.taskGroup && (
+          <span className="card-badge card-badge--group" title={`Group: ${card.taskGroup}${card.taskOrder ? ` (#${card.taskOrder})` : ''}`}>
+            <Layers size={12} />
+            <span>{card.taskGroup}{card.taskOrder ? ` #${card.taskOrder}` : ''}</span>
+          </span>
+        )}
         {card.description && (
           <span className="card-badge" title="Has description">
             <AlignLeft size={14} />

@@ -53,6 +53,9 @@ export interface Card {
   updatedAt: string;
   claudeTaskId?: string;
   claudeTaskStatus?: 'queued' | 'running' | 'completed' | 'failed' | 'stopped';
+  priority?: 'critical' | 'high' | 'medium' | 'low';
+  taskGroup?: string;
+  taskOrder?: number;
 }
 
 export interface Label {

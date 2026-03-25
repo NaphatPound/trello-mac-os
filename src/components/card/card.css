@@ -116,6 +116,46 @@
   gap: -4px;
 }
 
+/* Priority Badge */
+.card-badge--priority {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.card-badge--priority-critical {
+  background: #EB5A46;
+  color: white;
+}
+
+.card-badge--priority-high {
+  background: #FF9F1A;
+  color: white;
+}
+
+.card-badge--priority-medium {
+  background: #F2D600;
+  color: #172B4D;
+}
+
+.card-badge--priority-low {
+  background: #61BD4F;
+  color: white;
+}
+
+/* Task Group Badge */
+.card-badge--group {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(0, 121, 191, 0.1);
+  color: #0079BF;
+}
+
 /* Claude Task Status Badge */
 .card-badge--claude {
   padding: 2px 6px;

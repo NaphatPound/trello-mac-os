@@ -3,11 +3,14 @@ const BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'https://ollama.com';
 const MODEL = import.meta.env.VITE_OLLAMA_MODEL || 'qwen3.5:397b';
 const API_CHAT_URL = import.meta.env.DEV ? '/ollama-api/chat' : `${BASE_URL}/api/chat`;
 
-interface AICardSuggestion {
+export interface AICardSuggestion {
   title: string;
   description: string;
   checklist: string[];
   labels: { name: string; color: string }[];
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  taskGroup?: string;
+  taskOrder?: number;
 }
 
 async function chatCompletion(
@@ -123,10 +126,11 @@ Generate a structured task card with:
 1. A clear, concise title (max 60 chars)
 2. A detailed description explaining what needs to be done (2-4 sentences)
 3. A checklist of 3-6 actionable sub-tasks to complete this task
-4. 1-3 labels that categorize this task. For each label, provide a name and a color from: ${availableColors.join(', ')}.
+4. 1-3 labels that categorize this task. For each label, provide a name and a color from: ${availableColors.join(', ')}
+5. A priority: "critical", "high", "medium", or "low"
 
 Respond ONLY with this exact JSON format, nothing else:
-{"title": "Clear task title", "description": "Detailed description...", "checklist": ["Step 1", "Step 2", "Step 3"], "labels": [{"name": "Feature", "color": "#61BD4F"}]}`;
+{"title": "Clear task title", "description": "Detailed description...", "checklist": ["Step 1", "Step 2", "Step 3"], "labels": [{"name": "Feature", "color": "#61BD4F"}], "priority": "medium"}`;
 
   const content = await chatCompletion(prompt, onChunk);
   const parsed = parseJSON(content) as AICardSuggestion;
@@ -154,14 +158,17 @@ export async function analyzeRequirements(
 Requirement: "${requirement}"
 ${labelContext}
 
-Break this down into 2-6 individual task cards. For each task provide:
+Break this down into 2-6 individual task cards. Tasks should be ordered by execution dependency (what must be done first). For each task provide:
 1. A clear, concise title (max 60 chars)
 2. A brief description (1-2 sentences)
 3. A checklist of 2-4 actionable sub-tasks
-4. 1-2 labels with a name and color from: ${availableColors.join(', ')}.
+4. 1-2 labels with a name and color from: ${availableColors.join(', ')}
+5. A priority: "critical", "high", "medium", or "low" — based on importance and dependency order
+6. A taskGroup: a short group name that groups related tasks together (e.g. "Auth System", "Database Setup")
+7. A taskOrder: a number starting from 1 indicating execution order within the group (1 = do first, 2 = do second, etc.)
 
 Respond ONLY with a JSON array, nothing else:
-[{"title":"Task title","description":"Brief description","checklist":["Step 1","Step 2"],"labels":[{"name":"Feature","color":"#61BD4F"}]}]`;
+[{"title":"Task title","description":"Brief description","checklist":["Step 1","Step 2"],"labels":[{"name":"Feature","color":"#61BD4F"}],"priority":"high","taskGroup":"Group Name","taskOrder":1}]`;
 
   const content = await chatCompletion(prompt, onChunk);
   const parsed = parseJSON(content);
