@@ -54,7 +54,12 @@ const Card: React.FC<CardProps> = ({ card, board, isDragging = false }) => {
           ))}
         </div>
       )}
-      <span className="card-title">{card.title}</span>
+      <div className="card-title-row">
+        {card.taskOrder != null && (
+          <span className="card-order-badge">{card.taskOrder}</span>
+        )}
+        <span className="card-title">{card.title}</span>
+      </div>
       <div className="card-badges">
         {card.priority && (
           <span className={`card-badge card-badge--priority card-badge--priority-${card.priority}`} title={`Priority: ${card.priority}`}>

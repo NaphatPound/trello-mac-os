@@ -50,9 +50,30 @@
   align-items: center;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: var(--spacing-sm);
+}
+
+.card-order-badge {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #0079BF;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
 .card-title {
   display: block;
-  padding: var(--spacing-sm);
   font-size: var(--font-size-sm);
   color: var(--text-primary);
   word-break: break-word;

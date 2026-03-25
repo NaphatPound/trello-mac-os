@@ -37,10 +37,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
   const lists = useBoardStore(s => s.lists);
   const createCard = useBoardStore(s => s.createCard);
   const updateCard = useBoardStore(s => s.updateCard);
-  const moveCard = useBoardStore(s => s.moveCard);
   const addChecklist = useBoardStore(s => s.addChecklist);
   const addChecklistItem = useBoardStore(s => s.addChecklistItem);
-  const addComment = useBoardStore(s => s.addComment);
   const createLabel = useBoardStore(s => s.createLabel);
 
   const todoList = board.listIds
@@ -50,14 +48,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
       const t = l.title.toLowerCase();
       return t.includes('to do') || t === 'todo' || t === 'backlog';
     }) ?? (board.listIds.length > 0 ? lists[board.listIds[0]] : null);
-
-  const inProgressList = board.listIds
-    .map(id => lists[id])
-    .filter(Boolean)
-    .find(l => {
-      const t = l.title.toLowerCase().trim();
-      return t.includes('in progress') || t === 'inprogress' || t === 'in-progress';
-    });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -192,54 +182,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
         createdTitles.push(`${priorityIcon} ${task.title}${groupInfo}`);
       }
 
-      // Auto-start first task (#1) — move to In Progress and create Claude task
-      let autoStartMsg = '';
-      if (inProgressList && sortedTasks.length > 0) {
-        const firstTask = sortedTasks[0];
-        // Find the card we just created for the first task
-        const freshCards = useBoardStore.getState().cards;
-        const freshTodoList = useBoardStore.getState().lists[todoList.id];
-        if (freshTodoList) {
-          const firstCard = freshTodoList.cardIds
-            .map(id => freshCards[id])
-            .filter(Boolean)
-            .find(c => c.title === firstTask.title && !c.claudeTaskId);
-
-          if (firstCard) {
-            try {
-              // Move to In Progress
-              const freshIP = useBoardStore.getState().lists[inProgressList.id];
-              if (freshIP) {
-                moveCard(firstCard.id, todoList.id, inProgressList.id, freshIP.cardIds.length);
-                addComment(firstCard.id, `▶️ Auto-started as first task in order.`);
-
-                // Build prompt and create runner task
-                const promptLines: string[] = [`# Task: ${firstCard.title}`];
-                if (firstCard.description) promptLines.push('', '## Description', firstCard.description);
-                if (firstCard.checklists.length > 0) {
-                  promptLines.push('', '## Subtasks');
-                  for (const cl of firstCard.checklists) {
-                    for (const item of cl.items) {
-                      promptLines.push(`- [ ] ${item.text}`);
-                    }
-                  }
-                }
-                const cardPrompt = promptLines.join('\n');
-
-                updateCard(firstCard.id, { claudeTaskStatus: 'queued' });
-                const runnerTask = await createRunnerTask(cardPrompt, WORKING_DIR || undefined);
-                updateCard(firstCard.id, { claudeTaskId: runnerTask.id, claudeTaskStatus: runnerTask.status });
-                addComment(firstCard.id, `🤖 Claude Code task started (ID: ${runnerTask.id}).`);
-                autoStartMsg = `\n\n▶️ First task "${firstTask.title}" auto-moved to In Progress and Claude Code started!`;
-              }
-            } catch (e) {
-              console.error('[AI Assistant] Failed to auto-start first task:', e);
-              autoStartMsg = `\n\n⚠️ Failed to auto-start first task: ${String(e)}`;
-            }
-          }
-        }
-      }
-
       // Count groups
       const groups = [...new Set(sortedTasks.map(t => t.taskGroup).filter(Boolean))];
       const groupSummary = groups.length > 0 ? `\nGroups: ${groups.join(', ')}` : '';
@@ -247,7 +189,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
       const response: Message = {
         id: uuidv4(),
         role: 'assistant',
-        content: `I've created ${tasks.length} task${tasks.length !== 1 ? 's' : ''} with priorities and execution order:${groupSummary}${autoStartMsg}\n\nWhen each task completes, the next one will auto-start.`,
+        content: `I've created ${tasks.length} task${tasks.length !== 1 ? 's' : ''} with priorities and execution order:${groupSummary}\n\nDrag the first card to "In Progress" to start. When it completes, the next one will auto-start.`,
         createdCards: createdTitles,
       };
       setMessages(prev => prev.filter(m => m.id !== loadingId).concat(response));
