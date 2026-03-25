@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutGrid, Plus, Search, Bell, X } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Bell, X, Terminal } from 'lucide-react';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUIStore } from '../../stores/uiStore';
 import Avatar from '../common/Avatar';
 import CreateBoard from '../workspace/CreateBoard';
+import ClaudeTaskManager from '../claude/ClaudeTaskManager';
 import './header.css';
 
 const AppHeader: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showTaskManager, setShowTaskManager] = useState(false);
   const [searchText, setSearchText] = useState('');
   const location = useLocation();
   const boards = useBoardStore(s => s.boards);
@@ -51,6 +53,14 @@ const AppHeader: React.FC = () => {
               </button>
             )}
           </div>
+          <button
+            className="header-btn header-btn--claude"
+            onClick={() => setShowTaskManager(true)}
+            title="Claude Code Runner"
+          >
+            <Terminal size={16} />
+            <span>Runner</span>
+          </button>
           <button className="header-btn header-icon-btn" title="Notifications">
             <Bell size={18} />
           </button>
@@ -58,6 +68,7 @@ const AppHeader: React.FC = () => {
         </div>
       </header>
       {showCreate && <CreateBoard onClose={() => setShowCreate(false)} />}
+      {showTaskManager && <ClaudeTaskManager onClose={() => setShowTaskManager(false)} />}
     </>
   );
 };

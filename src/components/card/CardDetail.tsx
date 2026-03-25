@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X, CreditCard, AlignLeft, CheckSquare, Clock, Tag, User, MessageSquare,
   Palette, Trash2, Archive, Plus, MoreHorizontal, Sparkles, Loader2,
-  FileText, Copy, Check, ChevronDown, ChevronRight, Download
+  FileText, Copy, Check, ChevronDown, ChevronRight, Download,
+  Terminal, Play, Square, Eye, RotateCw
 } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useBoardStore } from '../../stores/boardStore';
 import { formatDueDate, getDueDateStatus, getChecklistProgress, formatTimeAgo, getInitials } from '../../utils/helpers';
 import { LABEL_COLORS, COVER_COLORS } from '../../utils/colors';
 import { generateDescriptionAndChecklist, generateCardFromDescription } from '../../services/ai';
+import {
+  createRunnerTask, getRunnerTask, stopRunnerTask, stripAnsi,
+  type RunnerTask
+} from '../../services/claudeRunner';
 import Avatar from '../common/Avatar';
 import './card-detail.css';
 
@@ -37,6 +42,10 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
   const [showMarkdown, setShowMarkdown] = useState(false);
   const [markdownContent, setMarkdownContent] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [showTaskOutput, setShowTaskOutput] = useState(false);
+  const [taskOutput, setTaskOutput] = useState('');
+  const [isTaskLoading, setIsTaskLoading] = useState(false);
+  const [taskError, setTaskError] = useState('');
 
   const updateCard = useBoardStore(s => s.updateCard);
   const deleteCard = useBoardStore(s => s.deleteCard);
@@ -160,6 +169,60 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
       setAiError(err instanceof Error ? err.message : 'AI generation failed');
     } finally {
       setIsAiLoading(false);
+    }
+  };
+
+  const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
+
+  const handleRunClaudeTask = async () => {
+    if (card.claudeTaskId) return;
+    setIsTaskLoading(true);
+    setTaskError('');
+    try {
+      const lines: string[] = [`# Task: ${card.title}`];
+      if (card.description) lines.push('', '## Description', card.description);
+      if (card.checklists.length > 0) {
+        lines.push('', '## Subtasks');
+        for (const cl of card.checklists) {
+          for (const item of cl.items) {
+            lines.push(`- ${item.isChecked ? '[x]' : '[ ]'} ${item.text}`);
+          }
+        }
+      }
+      const prompt = lines.join('\n');
+
+      updateCard(card.id, { claudeTaskStatus: 'queued' });
+      const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
+      updateCard(card.id, { claudeTaskId: task.id, claudeTaskStatus: task.status });
+      addComment(card.id, `🤖 Claude Code task started (ID: ${task.id.slice(0, 8)}...).`);
+    } catch (e) {
+      updateCard(card.id, { claudeTaskStatus: undefined });
+      setTaskError(String(e));
+    } finally {
+      setIsTaskLoading(false);
+    }
+  };
+
+  const handleViewTaskOutput = async () => {
+    if (!card.claudeTaskId) return;
+    setShowTaskOutput(true);
+    setTaskOutput('Loading...');
+    try {
+      const task = await getRunnerTask(card.claudeTaskId);
+      setTaskOutput(stripAnsi(task.output) || 'No output yet.');
+    } catch (e) {
+      setTaskOutput(`Error loading output: ${String(e)}`);
+    }
+  };
+
+  const handleStopClaudeTask = async () => {
+    if (!card.claudeTaskId) return;
+    try {
+      await stopRunnerTask(card.claudeTaskId);
+      updateCard(card.id, { claudeTaskStatus: 'stopped' });
+      addComment(card.id, '⏹️ Claude Code task was stopped manually.');
+    } catch (e) {
+      setTaskError(String(e));
     }
   };
 
@@ -481,6 +544,33 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
               </div>
             </div>
 
+            {/* Claude Code Task Output */}
+            {showTaskOutput && (
+              <div className="card-detail-section">
+                <div className="card-detail-section-header">
+                  <Terminal size={20} className="card-detail-icon" />
+                  <h3>Claude Code Output</h3>
+                  <div className="md-header-actions">
+                    {card.claudeTaskStatus && (
+                      <span className={`card-detail-task-status card-detail-task-status--${card.claudeTaskStatus}`}>
+                        {card.claudeTaskStatus}
+                      </span>
+                    )}
+                    <button className="md-action-btn" onClick={handleViewTaskOutput} title="Refresh output">
+                      <RotateCw size={14} />
+                      Refresh
+                    </button>
+                    <button className="md-action-btn" onClick={() => setShowTaskOutput(false)} title="Hide">
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="card-detail-terminal-output">
+                  <pre>{taskOutput}</pre>
+                </div>
+              </div>
+            )}
+
             {/* Markdown Export */}
             {showMarkdown && markdownContent && (
               <div className="card-detail-section">
@@ -685,6 +775,37 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
               {isAiLoading ? 'Generating...' : 'AI Assist'}
             </button>
             {aiError && <div className="ai-error ai-error--sidebar">{aiError}</div>}
+
+            {/* Claude Code Runner */}
+            {!card.claudeTaskId ? (
+              <button
+                className="card-detail-action-btn card-detail-action-btn--claude"
+                onClick={handleRunClaudeTask}
+                disabled={isTaskLoading}
+              >
+                {isTaskLoading ? <Loader2 size={16} className="ai-spinner" /> : <Terminal size={16} />}
+                {isTaskLoading ? 'Starting...' : 'Run with Claude'}
+              </button>
+            ) : (
+              <>
+                <button
+                  className="card-detail-action-btn card-detail-action-btn--claude"
+                  onClick={handleViewTaskOutput}
+                >
+                  <Eye size={16} />
+                  View Task Output
+                </button>
+                {(card.claudeTaskStatus === 'running' || card.claudeTaskStatus === 'queued') && (
+                  <button
+                    className="card-detail-action-btn card-detail-action-btn--danger"
+                    onClick={handleStopClaudeTask}
+                  >
+                    <Square size={16} /> Stop Task
+                  </button>
+                )}
+              </>
+            )}
+            {taskError && <div className="ai-error ai-error--sidebar">{taskError}</div>}
 
             {/* Export to Markdown */}
             <button

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DndContext, closestCorners, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
@@ -33,6 +33,11 @@ function buildPromptFromCard(card: CardType): string {
   return lines.join('\n');
 }
 
+function isInProgressList(title: string): boolean {
+  const t = title.toLowerCase().trim();
+  return t.includes('in progress') || t === 'inprogress' || t === 'in-progress';
+}
+
 const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
 
 const BoardView: React.FC = () => {
@@ -50,6 +55,9 @@ const BoardView: React.FC = () => {
   const [dragType, setDragType] = useState<'list' | 'card' | null>(null);
   const [showAssistant, setShowAssistant] = useState(false);
 
+  // Track the original list when drag starts so we know if card actually moved
+  const dragOriginalListRef = useRef<string | null>(null);
+
   // Start polling for Claude Code Runner tasks
   useTaskPoller(boardId ?? '');
 
@@ -57,19 +65,22 @@ const BoardView: React.FC = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const triggerClaudeTask = useCallback(async (card: CardType) => {
-    if (card.claudeTaskId) return; // Already has a task running
+  const triggerClaudeTask = useCallback(async (cardId: string) => {
+    const card = useBoardStore.getState().cards[cardId];
+    if (!card || card.claudeTaskId) return;
 
     const prompt = buildPromptFromCard(card);
+    console.log('[Claude Runner] Creating task for card:', card.title);
     try {
-      updateCard(card.id, { claudeTaskStatus: 'queued' });
+      updateCard(cardId, { claudeTaskStatus: 'queued' });
       const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
-      updateCard(card.id, { claudeTaskId: task.id, claudeTaskStatus: task.status });
-      addComment(card.id, `🤖 Claude Code task started (ID: ${task.id}). Monitoring for completion…`);
+      console.log('[Claude Runner] Task created:', task.id, 'status:', task.status);
+      updateCard(cardId, { claudeTaskId: task.id, claudeTaskStatus: task.status });
+      addComment(cardId, `🤖 Claude Code task started (ID: ${task.id}). Monitoring for completion…`);
     } catch (e) {
-      console.error('Failed to create Claude Code Runner task:', e);
-      updateCard(card.id, { claudeTaskStatus: undefined });
-      addComment(card.id, `❌ Failed to start Claude Code task: ${String(e)}`);
+      console.error('[Claude Runner] Failed to create task:', e);
+      updateCard(cardId, { claudeTaskStatus: undefined });
+      addComment(cardId, `❌ Failed to start Claude Code task: ${String(e)}`);
     }
   }, [updateCard, addComment]);
 
@@ -89,6 +100,10 @@ const BoardView: React.FC = () => {
     const type = active.data.current?.type;
     setDragActiveId(active.id as string);
     setDragType(type);
+    // Remember which list the card started in
+    if (type === 'card') {
+      dragOriginalListRef.current = active.data.current?.listId || null;
+    }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -99,11 +114,14 @@ const BoardView: React.FC = () => {
     const overType = over.data.current?.type;
 
     if (activeType === 'card') {
-      const activeListId = active.data.current?.listId;
+      // Get the card's CURRENT listId from the store (not from drag data, which is stale)
+      const freshCard = useBoardStore.getState().cards[active.id as string];
+      if (!freshCard) return;
+      const activeListId = freshCard.listId;
       const overListId = overType === 'card' ? over.data.current?.listId : over.id as string;
 
       if (activeListId && overListId && activeListId !== overListId) {
-        const overList = lists[overListId];
+        const overList = useBoardStore.getState().lists[overListId];
         if (overList) {
           const overIndex = overType === 'card'
             ? overList.cardIds.indexOf(over.id as string)
@@ -116,50 +134,62 @@ const BoardView: React.FC = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    const cardId = active.id as string;
+    const currentDragType = dragType;
+    const originalListId = dragOriginalListRef.current;
+
     setDragActiveId(null);
     setDragType(null);
+    dragOriginalListRef.current = null;
 
-    if (!over || active.id === over.id) return;
-
-    const activeType = active.data.current?.type;
-
-    if (activeType === 'list') {
+    if (currentDragType === 'list' && over && active.id !== over.id) {
       const oldIndex = board.listIds.indexOf(active.id as string);
       const newIndex = board.listIds.indexOf(over.id as string);
       if (oldIndex !== -1 && newIndex !== -1) {
         moveList(boardId, oldIndex, newIndex);
       }
-    } else if (activeType === 'card') {
-      const activeListId = active.data.current?.listId;
-      const overListId = over.data.current?.type === 'card'
-        ? over.data.current?.listId
-        : over.id as string;
+      return;
+    }
 
-      if (activeListId && overListId) {
-        const targetList = lists[overListId];
-        if (targetList) {
-          const overIndex = over.data.current?.type === 'card'
-            ? targetList.cardIds.indexOf(over.id as string)
-            : targetList.cardIds.length;
-
-          if (activeListId === overListId) {
-            const currentIndex = targetList.cardIds.indexOf(active.id as string);
-            if (currentIndex !== overIndex) {
-              moveCard(active.id as string, activeListId, overListId, overIndex >= 0 ? overIndex : targetList.cardIds.length);
+    if (currentDragType === 'card') {
+      // Handle same-list reorder (cross-list already handled in handleDragOver)
+      if (over && active.id !== over.id) {
+        const freshCard = useBoardStore.getState().cards[cardId];
+        if (freshCard) {
+          const overListId = over.data.current?.type === 'card'
+            ? over.data.current?.listId
+            : over.id as string;
+          if (freshCard.listId === overListId) {
+            const targetList = useBoardStore.getState().lists[overListId];
+            if (targetList) {
+              const overIndex = over.data.current?.type === 'card'
+                ? targetList.cardIds.indexOf(over.id as string)
+                : targetList.cardIds.length;
+              const currentIndex = targetList.cardIds.indexOf(cardId);
+              if (currentIndex !== overIndex) {
+                moveCard(cardId, freshCard.listId, overListId, overIndex >= 0 ? overIndex : targetList.cardIds.length);
+              }
             }
           }
         }
       }
 
-      // After drag completes, check if card landed in "In Progress" list
-      // Use getState() to get the freshest card data (handleDragOver may have already committed the move)
-      const freshCard = useBoardStore.getState().cards[active.id as string];
-      if (freshCard && !freshCard.claudeTaskId) {
-        const freshList = useBoardStore.getState().lists[freshCard.listId];
-        if (freshList?.title.toLowerCase().includes('in progress')) {
-          void triggerClaudeTask(freshCard);
+      // Check if card ended up in "In Progress" list — trigger Claude Code task
+      // Use setTimeout to let the store fully settle
+      setTimeout(() => {
+        const freshCard = useBoardStore.getState().cards[cardId];
+        if (!freshCard || freshCard.claudeTaskId) return;
+
+        const currentList = useBoardStore.getState().lists[freshCard.listId];
+        if (!currentList) return;
+
+        // Only trigger if the card actually moved TO "In Progress" from a different list
+        const movedToNewList = originalListId && originalListId !== freshCard.listId;
+        if (movedToNewList && isInProgressList(currentList.title)) {
+          console.log('[Claude Runner] Card moved to "' + currentList.title + '", triggering task:', freshCard.title);
+          void triggerClaudeTask(cardId);
         }
-      }
+      }, 150);
     }
   };
 

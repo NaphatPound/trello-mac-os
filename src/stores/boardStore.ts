@@ -76,14 +76,26 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   createBoard: (title, background) => {
     const id = uuidv4();
     const now = new Date().toISOString();
+
+    // Create default lists
+    const defaultListTitles = ['To Do', 'In Progress', 'Review', 'Done'];
+    const defaultLists: Record<string, List> = {};
+    const defaultListIds: string[] = [];
+    for (const listTitle of defaultListTitles) {
+      const listId = uuidv4();
+      defaultListIds.push(listId);
+      defaultLists[listId] = { id: listId, boardId: id, title: listTitle, cardIds: [], isArchived: false };
+    }
+
     const board: Board = {
       id, workspaceId: get().workspace.id, title, background,
-      listIds: [], labels: [], members: [{ id: 'member-1', name: 'You', avatar: '', color: '#0079BF' }, aiMember],
+      listIds: defaultListIds, labels: [], members: [{ id: 'member-1', name: 'You', avatar: '', color: '#0079BF' }, aiMember],
       isStarred: false, createdAt: now, updatedAt: now,
     };
     set(state => {
       const newState = {
         boards: { ...state.boards, [id]: board },
+        lists: { ...state.lists, ...defaultLists },
         workspace: { ...state.workspace, boardIds: [...state.workspace.boardIds, id] },
       };
       saveState({ ...state, ...newState });

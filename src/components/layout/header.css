@@ -131,3 +131,12 @@
 .header-search button:hover {
   background: var(--bg-hover);
 }
+
+.header-btn--claude {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.35), rgba(118, 75, 162, 0.35));
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.header-btn--claude:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.5), rgba(118, 75, 162, 0.5));
+}

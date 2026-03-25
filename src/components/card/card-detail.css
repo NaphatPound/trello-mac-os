@@ -717,6 +717,65 @@
   font-size: var(--font-size-xs);
 }
 
+/* ─── Claude Code Runner ─────────────────────────────── */
+.card-detail-action-btn--claude {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: #667eea;
+}
+
+.card-detail-action-btn--claude:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+}
+
+.card-detail-terminal-output {
+  background: #1a1a2e;
+  border-radius: var(--radius-md);
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.card-detail-terminal-output pre {
+  margin: 0;
+  padding: 12px;
+  color: #e0e0e0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.card-detail-task-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.card-detail-task-status--running,
+.card-detail-task-status--queued {
+  background: rgba(54, 162, 235, 0.12);
+  color: #36a2eb;
+}
+
+.card-detail-task-status--completed {
+  background: rgba(75, 192, 75, 0.12);
+  color: #4bc04b;
+}
+
+.card-detail-task-status--failed {
+  background: rgba(235, 90, 70, 0.12);
+  color: #eb5a46;
+}
+
+.card-detail-task-status--stopped {
+  background: rgba(153, 102, 255, 0.12);
+  color: #9966ff;
+}
+
 @media (max-width: 640px) {
   .card-detail-body {
     flex-direction: column;

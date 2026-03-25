@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Send, Bot, Loader2, CheckCircle2, AlertCircle, Terminal, Play } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Board } from '../../types';
 import { useBoardStore } from '../../stores/boardStore';
 import { analyzeRequirements } from '../../services/ai';
+import { createRunnerTask } from '../../services/claudeRunner';
 import './ai-assistant.css';
 
 interface Message {
@@ -51,6 +52,48 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
+
+  const handleRunWithClaude = async () => {
+    if (!input.trim() || isLoading) return;
+    const prompt = input.trim();
+    const userMsg: Message = { id: uuidv4(), role: 'user', content: `[Claude Code] ${prompt}` };
+    const loadingId = uuidv4();
+    setMessages(prev => [...prev, userMsg, { id: loadingId, role: 'assistant', content: 'Starting Claude Code task...', isLoading: true }]);
+    setInput('');
+    setIsLoading(true);
+    try {
+      const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
+
+      // Also create a card for tracking if we have a list
+      if (todoList) {
+        const card = createCard(todoList.id, board.id, prompt.slice(0, 60));
+        updateCard(card.id, {
+          description: prompt,
+          claudeTaskId: task.id,
+          claudeTaskStatus: task.status,
+        });
+      }
+
+      const response: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: `Claude Code task started! Task ID: ${task.id.slice(0, 8)}...\nStatus: ${task.status}\n\nA tracking card has been created. The task will auto-move to "Done" when completed.`,
+      };
+      setMessages(prev => prev.filter(m => m.id !== loadingId).concat(response));
+    } catch (e) {
+      const errorMsg: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: `Failed to start Claude Code task: ${String(e)}.\nMake sure Claude Code Runner is running at localhost:3456.`,
+        isError: true,
+      };
+      setMessages(prev => prev.filter(m => m.id !== loadingId).concat(errorMsg));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleQuickAdd = () => {
     if (!input.trim() || isLoading) return;
@@ -235,6 +278,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ board, onClose }) => {
             title="Quick Add — create card directly without AI"
           >
             + Quick Add
+          </button>
+          <button
+            className="ai-claude-run-btn"
+            onClick={handleRunWithClaude}
+            disabled={!input.trim() || isLoading}
+            title="Run as Claude Code task"
+          >
+            <Terminal size={14} />
+            Run
           </button>
           <button
             className="ai-assistant-send"
