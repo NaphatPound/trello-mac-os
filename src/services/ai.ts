@@ -1,6 +1,7 @@
 const API_KEY = import.meta.env.VITE_OLLAMA_API_KEY || '';
 const BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'https://ollama.com';
 const MODEL = import.meta.env.VITE_OLLAMA_MODEL || 'qwen3.5:397b';
+const VISION_MODEL = import.meta.env.VITE_OLLAMA_VISION_MODEL || 'gemma3:27b';
 const API_CHAT_URL = import.meta.env.DEV ? '/ollama-api/chat' : `${BASE_URL}/api/chat`;
 
 export interface AICardSuggestion {
@@ -87,6 +88,68 @@ async function chatCompletion(
     }
   }
   throw new Error('AI request failed after retries');
+}
+
+export async function chatWithImage(
+  prompt: string,
+  imageBase64: string,
+  onChunk?: (partial: string) => void
+): Promise<string> {
+  // Use a vision-capable model (e.g. gemma3) with native Ollama images field
+  const body = JSON.stringify({
+    model: VISION_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: prompt || 'What is in this image? Describe it in detail.',
+        images: [imageBase64],
+      },
+    ],
+    stream: true,
+  });
+
+  const response = await fetch(API_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(API_KEY ? { 'Authorization': `Bearer ${API_KEY}` } : {}),
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Vision AI error (${response.status}): ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let fullContent = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        const token = parsed.message?.content ?? '';
+        if (token) {
+          fullContent += token;
+          onChunk?.(fullContent);
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+
+  return fullContent;
 }
 
 function parseJSON(text: string): unknown {

@@ -241,6 +241,78 @@
   opacity: 0.88;
 }
 
+/* Image in message */
+.ai-msg-image {
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Image preview in footer */
+.ai-image-preview {
+  position: relative;
+  display: inline-block;
+  max-width: 120px;
+}
+
+.ai-image-preview img {
+  width: 100%;
+  max-height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 2px solid #764ba2;
+}
+
+.ai-image-preview-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #EB5A46;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.ai-image-preview-remove:hover {
+  background: #CF513D;
+}
+
+/* Image upload button */
+.ai-image-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-list);
+  border: 2px solid #DFE1E6;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.ai-image-btn:hover:not(:disabled) {
+  border-color: #764ba2;
+  color: #764ba2;
+  background: rgba(118, 75, 162, 0.06);
+}
+
+.ai-image-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Claude Code Run Button */
 .ai-claude-run-btn {
   display: flex;
