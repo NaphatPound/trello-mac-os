@@ -1,7 +1,8 @@
 const API_KEY = import.meta.env.VITE_OLLAMA_API_KEY || '';
 const BASE_URL = import.meta.env.VITE_OLLAMA_BASE_URL || 'https://ollama.com';
 const MODEL = import.meta.env.VITE_OLLAMA_MODEL || 'qwen3.5:397b';
-const VISION_MODEL = import.meta.env.VITE_OLLAMA_VISION_MODEL || 'gemma3:27b';
+const VISION_MODEL = import.meta.env.VITE_OLLAMA_VISION_MODEL || 'gemma4:31b-cloud';
+const VOICE_MODEL = import.meta.env.VITE_OLLAMA_VOICE_MODEL || 'minimax-m2.7:cloud';
 const API_CHAT_URL = import.meta.env.DEV ? '/ollama-api/chat' : `${BASE_URL}/api/chat`;
 
 export interface AICardSuggestion {
@@ -90,12 +91,74 @@ async function chatCompletion(
   throw new Error('AI request failed after retries');
 }
 
+export async function voiceChat(
+  message: string,
+  history: { role: 'user' | 'assistant'; content: string }[] = [],
+  onChunk?: (partial: string) => void
+): Promise<string> {
+  const body = JSON.stringify({
+    model: VOICE_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a friendly voice assistant. Keep responses concise and conversational — ideally 1-3 sentences. Be natural and direct, as your responses will be read aloud.',
+      },
+      ...history,
+      { role: 'user', content: message },
+    ],
+    stream: true,
+  });
+
+  const response = await fetch(API_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(API_KEY ? { 'Authorization': `Bearer ${API_KEY}` } : {}),
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Voice AI error (${response.status}): ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let fullContent = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        const token = parsed.message?.content ?? '';
+        if (token) {
+          fullContent += token;
+          onChunk?.(fullContent);
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+
+  return fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+}
+
 export async function chatWithImage(
   prompt: string,
   imageBase64: string,
   onChunk?: (partial: string) => void
 ): Promise<string> {
-  // Use a vision-capable model (e.g. gemma3) with native Ollama images field
+  // Use a vision-capable model (e.g. gemma4) with native Ollama images field
   const body = JSON.stringify({
     model: VISION_MODEL,
     messages: [
@@ -238,6 +301,69 @@ Respond ONLY with a JSON array, nothing else:
 
   if (!Array.isArray(parsed)) throw new Error('AI did not return an array of tasks');
   return (parsed as AICardSuggestion[]).filter(t => t.title && t.description);
+}
+
+export async function freeChat(
+  message: string,
+  history: { role: 'user' | 'assistant'; content: string }[] = [],
+  onChunk?: (partial: string) => void
+): Promise<string> {
+  const body = JSON.stringify({
+    model: MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a helpful brainstorming and project planning assistant. Help the user think through ideas, suggest approaches, and discuss solutions. Respond in clear, concise natural language. Do NOT respond in JSON.',
+      },
+      ...history,
+      { role: 'user', content: message },
+    ],
+    stream: true,
+  });
+
+  const response = await fetch(API_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(API_KEY ? { 'Authorization': `Bearer ${API_KEY}` } : {}),
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AI API error (${response.status}): ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let fullContent = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        const token = parsed.message?.content ?? '';
+        if (token) {
+          fullContent += token;
+          onChunk?.(fullContent);
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+
+  // Strip thinking tags if present
+  return fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
 
 export async function generateDescriptionAndChecklist(

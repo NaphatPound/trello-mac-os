@@ -177,6 +177,22 @@
   color: #0079BF;
 }
 
+/* Scheduled Badge */
+.card-badge--scheduled {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 159, 26, 0.12);
+  color: #D68000;
+}
+
+.card-badge--scheduled-due {
+  background: rgba(235, 90, 70, 0.12);
+  color: #EB5A46;
+  animation: claudePulse 2s ease-in-out infinite;
+}
+
 /* Claude Task Status Badge */
 .card-badge--claude {
   padding: 2px 6px;

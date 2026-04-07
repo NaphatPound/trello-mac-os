@@ -6,7 +6,9 @@ import { useBoardStore } from '../../stores/boardStore';
 import { useUIStore } from '../../stores/uiStore';
 import { Card as CardType } from '../../types';
 import { createRunnerTask } from '../../services/claudeRunner';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useTaskPoller } from '../../hooks/useTaskPoller';
+import { useScheduler } from '../../hooks/useScheduler';
 import BoardHeader from './BoardHeader';
 import BoardMenu from './BoardMenu';
 import List from '../list/List';
@@ -17,7 +19,9 @@ import AIAssistant from '../assistant/AIAssistant';
 import './board.css';
 
 function buildPromptFromCard(card: CardType): string {
-  const lines: string[] = [`# Task: ${card.title}`];
+  const lines: string[] = [];
+  lines.push(`Please implement the following task.`);
+  lines.push('', `# Task: ${card.title}`);
   if (card.description) {
     lines.push('', '## Description', card.description);
   }
@@ -30,6 +34,9 @@ function buildPromptFromCard(card: CardType): string {
       }
     }
   }
+  if (!card.description && card.checklists.length === 0) {
+    lines.push('', 'Implement this task based on the title. Analyze the codebase, determine what changes are needed, and make them.');
+  }
   return lines.join('\n');
 }
 
@@ -37,8 +44,6 @@ function isInProgressList(title: string): boolean {
   const t = title.toLowerCase().trim();
   return t.includes('in progress') || t === 'inprogress' || t === 'in-progress';
 }
-
-const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
 
 const BoardView: React.FC = () => {
   const { boardId } = useParams<{ boardId: string }>();
@@ -54,12 +59,15 @@ const BoardView: React.FC = () => {
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
   const [dragType, setDragType] = useState<'list' | 'card' | null>(null);
   const [showAssistant, setShowAssistant] = useState(false);
+  const WORKING_DIR = useSettingsStore(s => s.workingDir);
 
   // Track the original list when drag starts so we know if card actually moved
   const dragOriginalListRef = useRef<string | null>(null);
 
   // Start polling for Claude Code Runner tasks
   useTaskPoller(boardId ?? '');
+  // Start scheduler for scheduled tasks
+  useScheduler(boardId ?? '');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -73,7 +81,8 @@ const BoardView: React.FC = () => {
     console.log('[Claude Runner] Creating task for card:', card.title);
     try {
       updateCard(cardId, { claudeTaskStatus: 'queued' });
-      const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
+      const selectedModel = useSettingsStore.getState().selectedModel;
+      const task = await createRunnerTask(prompt, WORKING_DIR || undefined, undefined, selectedModel || undefined);
       console.log('[Claude Runner] Task created:', task.id, 'status:', task.status);
       updateCard(cardId, { claudeTaskId: task.id, claudeTaskStatus: task.status });
       addComment(cardId, `🤖 Claude Code task started (ID: ${task.id}). Monitoring for completion…`);

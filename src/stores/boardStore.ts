@@ -78,7 +78,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     const now = new Date().toISOString();
 
     // Create default lists
-    const defaultListTitles = ['To Do', 'In Progress', 'Review', 'Done'];
+    const defaultListTitles = ['Scheduled', 'To Do', 'In Progress', 'Review', 'Done'];
     const defaultLists: Record<string, List> = {};
     const defaultListIds: string[] = [];
     for (const listTitle of defaultListTitles) {

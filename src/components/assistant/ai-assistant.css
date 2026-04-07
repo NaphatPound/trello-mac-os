@@ -47,6 +47,39 @@
   color: white;
 }
 
+/* Mode Tabs */
+.ai-mode-tabs {
+  display: flex;
+  border-bottom: 1px solid #DFE1E6;
+  background: var(--bg-card);
+  padding: 0 8px;
+}
+
+.ai-mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ai-mode-tab:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.ai-mode-tab--active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
 /* Messages */
 .ai-assistant-messages {
   flex: 1;
@@ -311,6 +344,237 @@
 .ai-image-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Schedule Bar */
+.ai-schedule-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 159, 26, 0.08);
+  border: 1px solid rgba(255, 159, 26, 0.25);
+  border-radius: var(--radius-sm);
+  color: #D68000;
+  font-size: 12px;
+}
+
+.ai-schedule-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.ai-schedule-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+.ai-schedule-hint {
+  color: #D68000;
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+/* Model Picker */
+.ai-model-bar {
+  position: relative;
+}
+
+.ai-model-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-list);
+  border: 1px solid #DFE1E6;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.ai-model-toggle:hover {
+  border-color: #764ba2;
+  color: #764ba2;
+}
+
+.ai-model-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid #DFE1E6;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dropdown);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  margin-bottom: 4px;
+}
+
+.ai-model-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ai-model-option:last-child {
+  border-bottom: none;
+}
+
+.ai-model-option:hover {
+  background: rgba(118, 75, 162, 0.06);
+}
+
+.ai-model-option--active {
+  background: rgba(118, 75, 162, 0.1);
+  color: #764ba2;
+  font-weight: 600;
+}
+
+/* Task Style Toggle */
+.ai-task-style {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-list);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  border: 1px solid #DFE1E6;
+}
+
+.ai-task-style-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ai-task-style-btn:hover {
+  color: var(--text-primary);
+}
+
+.ai-task-style-btn--active {
+  background: white;
+  color: #764ba2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+/* Voice Controls */
+.ai-voice-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(235, 90, 70, 0.08);
+  border: 1px solid rgba(235, 90, 70, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: #EB5A46;
+  animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+.ai-voice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #EB5A46;
+  animation: voiceDot 1s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes voiceDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.ai-voice-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-list);
+  border: 2px solid #DFE1E6;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.ai-voice-btn:hover:not(:disabled) {
+  border-color: #EB5A46;
+  color: #EB5A46;
+}
+
+.ai-voice-btn--recording {
+  background: #EB5A46;
+  border-color: #EB5A46;
+  color: white;
+  animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+.ai-voice-btn--recording:hover:not(:disabled) {
+  background: #CF513D;
+  border-color: #CF513D;
+  color: white;
+}
+
+.ai-voice-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ai-speak-toggle {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  opacity: 0.6;
+}
+
+.ai-speak-toggle:hover {
+  opacity: 1;
+}
+
+.ai-speak-toggle--active {
+  color: #EB5A46;
+  opacity: 1;
 }
 
 /* Claude Code Run Button */

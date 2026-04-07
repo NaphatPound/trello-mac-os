@@ -173,6 +173,29 @@
   border-color: #667eea;
 }
 
+.ctm-new-task-model {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8888aa;
+}
+
+.ctm-new-task-model-select {
+  flex: 1;
+  padding: 6px 8px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  color: #e0e0ff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ctm-new-task-model-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
 .ctm-new-task-actions {
   display: flex;
   gap: 8px;

@@ -1,12 +1,25 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil, Bot, Loader2, CircleCheck, CircleX, Flag, Layers } from 'lucide-react';
+import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil, Bot, Loader2, CircleCheck, CircleX, Flag, Layers, Timer } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { formatDueDate, getDueDateStatus, getChecklistProgress } from '../../utils/helpers';
 import Avatar from '../common/Avatar';
 import './card.css';
+
+function formatSchedule(isoDate: string): string {
+  const d = new Date(isoDate);
+  const now = new Date();
+  const diff = d.getTime() - now.getTime();
+  if (diff <= 0) return 'Now';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ${hrs % 24}h`;
+}
 
 interface CardProps {
   card: CardType;
@@ -71,6 +84,15 @@ const Card: React.FC<CardProps> = ({ card, board, isDragging = false }) => {
           <span className="card-badge card-badge--group" title={`Group: ${card.taskGroup}${card.taskOrder ? ` (#${card.taskOrder})` : ''}`}>
             <Layers size={12} />
             <span>{card.taskGroup}{card.taskOrder ? ` #${card.taskOrder}` : ''}</span>
+          </span>
+        )}
+        {card.scheduledAt && (
+          <span
+            className={`card-badge card-badge--scheduled ${new Date(card.scheduledAt) <= new Date() ? 'card-badge--scheduled-due' : ''}`}
+            title={`Scheduled: ${new Date(card.scheduledAt).toLocaleString()}`}
+          >
+            <Timer size={12} />
+            <span>{formatSchedule(card.scheduledAt)}</span>
           </span>
         )}
         {card.description && (

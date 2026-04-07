@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutGrid, Plus, Search, Bell, X, Terminal } from 'lucide-react';
+import { LayoutGrid, Plus, Search, Bell, X, Terminal, Settings as SettingsIcon } from 'lucide-react';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUIStore } from '../../stores/uiStore';
 import Avatar from '../common/Avatar';
 import CreateBoard from '../workspace/CreateBoard';
 import ClaudeTaskManager from '../claude/ClaudeTaskManager';
+import Settings from '../settings/Settings';
 import './header.css';
 
 const AppHeader: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showTaskManager, setShowTaskManager] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [searchText, setSearchText] = useState('');
   const location = useLocation();
   const boards = useBoardStore(s => s.boards);
@@ -61,6 +63,13 @@ const AppHeader: React.FC = () => {
             <Terminal size={16} />
             <span>Runner</span>
           </button>
+          <button
+            className="header-btn header-icon-btn"
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
+            <SettingsIcon size={18} />
+          </button>
           <button className="header-btn header-icon-btn" title="Notifications">
             <Bell size={18} />
           </button>
@@ -69,6 +78,7 @@ const AppHeader: React.FC = () => {
       </header>
       {showCreate && <CreateBoard onClose={() => setShowCreate(false)} />}
       {showTaskManager && <ClaudeTaskManager onClose={() => setShowTaskManager(false)} />}
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </>
   );
 };

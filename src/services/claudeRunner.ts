@@ -14,11 +14,17 @@ function getHeaders(): Record<string, string> {
   return headers;
 }
 
+export interface RunnerModel {
+  id: string;
+  name: string;
+}
+
 export interface RunnerTask {
   id: string;
   prompt: string;
   workingDir: string;
   callbackUrl?: string;
+  model?: string;
   status: 'queued' | 'running' | 'completed' | 'failed' | 'stopped';
   output: string;
   createdAt: string;
@@ -48,14 +54,24 @@ export interface RunnerTaskSummary {
 
 // ─── REST API ────────────────────────────────────────────────
 
+export async function listModels(): Promise<RunnerModel[]> {
+  const res = await fetch(`${RUNNER_BASE}/api/models`, {
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error(`Failed to list models: ${res.status}`);
+  return res.json();
+}
+
 export async function createRunnerTask(
   prompt: string,
   workingDir?: string,
-  callbackUrl?: string
+  callbackUrl?: string,
+  model?: string
 ): Promise<RunnerTask> {
   const body: Record<string, string> = { prompt };
   if (workingDir) body.workingDir = workingDir;
   if (callbackUrl) body.callbackUrl = callbackUrl;
+  if (model) body.model = model;
 
   const res = await fetch(`${RUNNER_BASE}/api/tasks`, {
     method: 'POST',

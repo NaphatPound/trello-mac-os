@@ -3,7 +3,7 @@ import {
   X, CreditCard, AlignLeft, CheckSquare, Clock, Tag, User, MessageSquare,
   Palette, Trash2, Archive, Plus, MoreHorizontal, Sparkles, Loader2,
   FileText, Copy, Check, ChevronDown, ChevronRight, Download,
-  Terminal, Play, Square, Eye, RotateCw
+  Terminal, Play, Square, Eye, RotateCw, Timer
 } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useBoardStore } from '../../stores/boardStore';
@@ -14,6 +14,7 @@ import {
   createRunnerTask, getRunnerTask, stopRunnerTask, stripAnsi,
   type RunnerTask
 } from '../../services/claudeRunner';
+import { useSettingsStore } from '../../stores/settingsStore';
 import Avatar from '../common/Avatar';
 import './card-detail.css';
 
@@ -46,6 +47,10 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
   const [taskOutput, setTaskOutput] = useState('');
   const [isTaskLoading, setIsTaskLoading] = useState(false);
   const [taskError, setTaskError] = useState('');
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleInput, setScheduleInput] = useState(
+    card.scheduledAt ? new Date(card.scheduledAt).toISOString().slice(0, 16) : ''
+  );
 
   const updateCard = useBoardStore(s => s.updateCard);
   const deleteCard = useBoardStore(s => s.deleteCard);
@@ -115,6 +120,19 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
     setShowDueDate(false);
   };
 
+  const handleSetSchedule = () => {
+    if (scheduleInput) {
+      updateCard(card.id, { scheduledAt: new Date(scheduleInput).toISOString() });
+    }
+    setShowSchedule(false);
+  };
+
+  const handleRemoveSchedule = () => {
+    updateCard(card.id, { scheduledAt: undefined });
+    setScheduleInput('');
+    setShowSchedule(false);
+  };
+
   const handleAiAssist = async () => {
     setIsAiLoading(true);
     setAiError('');
@@ -172,14 +190,16 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
     }
   };
 
-  const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
+  const WORKING_DIR = useSettingsStore(s => s.workingDir);
 
   const handleRunClaudeTask = async () => {
     if (card.claudeTaskId) return;
     setIsTaskLoading(true);
     setTaskError('');
     try {
-      const lines: string[] = [`# Task: ${card.title}`];
+      const lines: string[] = [];
+      lines.push('Please implement the following task.');
+      lines.push('', `# Task: ${card.title}`);
       if (card.description) lines.push('', '## Description', card.description);
       if (card.checklists.length > 0) {
         lines.push('', '## Subtasks');
@@ -189,10 +209,14 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
           }
         }
       }
+      if (!card.description && card.checklists.length === 0) {
+        lines.push('', 'Implement this task based on the title. Analyze the codebase, determine what changes are needed, and make them.');
+      }
       const prompt = lines.join('\n');
 
       updateCard(card.id, { claudeTaskStatus: 'queued' });
-      const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
+      const selectedModel = useSettingsStore.getState().selectedModel;
+      const task = await createRunnerTask(prompt, WORKING_DIR || undefined, undefined, selectedModel || undefined);
       updateCard(card.id, { claudeTaskId: task.id, claudeTaskStatus: task.status });
       addComment(card.id, `🤖 Claude Code task started (ID: ${task.id.slice(0, 8)}...).`);
     } catch (e) {
@@ -416,6 +440,16 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
                     {dueDateStatus === 'overdue' && <span className="card-detail-due-tag">Overdue</span>}
                     {dueDateStatus === 'due-soon' && <span className="card-detail-due-tag">Due soon</span>}
                     {dueDateStatus === 'complete' && <span className="card-detail-due-tag">Complete</span>}
+                  </div>
+                </div>
+              )}
+              {card.scheduledAt && (
+                <div className="card-detail-meta-item">
+                  <span className="card-detail-meta-label">Scheduled execution</span>
+                  <div className={`card-detail-schedule-badge ${new Date(card.scheduledAt) <= new Date() ? 'card-detail-schedule-badge--due' : ''}`}>
+                    <Timer size={14} />
+                    <span>{new Date(card.scheduledAt).toLocaleString()}</span>
+                    {new Date(card.scheduledAt) <= new Date() && <span className="card-detail-due-tag">Pending trigger</span>}
                   </div>
                 </div>
               )}
@@ -756,6 +790,39 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="btn-primary btn-sm" onClick={handleSetDueDate}>Save</button>
                       <button className="btn-secondary btn-sm" onClick={handleRemoveDueDate}>Remove</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Schedule */}
+            <div style={{ position: 'relative' }}>
+              <button className="card-detail-action-btn card-detail-action-btn--schedule" onClick={() => setShowSchedule(!showSchedule)}>
+                <Timer size={16} /> Schedule
+                {card.scheduledAt && <span className="card-detail-action-tag">Set</span>}
+              </button>
+              {showSchedule && (
+                <div className="card-detail-popover">
+                  <div className="card-detail-popover-header">
+                    <span>Schedule execution</span>
+                    <button onClick={() => setShowSchedule(false)}><X size={14} /></button>
+                  </div>
+                  <div className="card-detail-popover-body">
+                    <p className="card-detail-schedule-hint">
+                      Set a date and time for this task to auto-execute via Claude Code Runner.
+                    </p>
+                    <input
+                      type="datetime-local"
+                      className="popover-input"
+                      value={scheduleInput}
+                      onChange={e => setScheduleInput(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-primary btn-sm" onClick={handleSetSchedule} disabled={!scheduleInput}>Save</button>
+                      {card.scheduledAt && (
+                        <button className="btn-secondary btn-sm" onClick={handleRemoveSchedule}>Remove</button>
+                      )}
                     </div>
                   </div>
                 </div>

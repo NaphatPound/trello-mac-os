@@ -2,22 +2,23 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Plus, Square, Trash2, RotateCw, Terminal, ChevronDown, ChevronRight,
   Loader2, CircleCheck, CircleX, Clock, Play, Send, Maximize2, Minimize2,
-  FolderOpen, Wifi, WifiOff
+  FolderOpen, Wifi, WifiOff, Cpu
 } from 'lucide-react';
 import {
   listRunnerTasks, getRunnerTask, createRunnerTask, stopRunnerTask,
-  deleteRunnerTask, connectRunnerWs, stripAnsi,
-  type RunnerTask, type RunnerTaskSummary, type RunnerWebSocket, type WsMessage
+  deleteRunnerTask, connectRunnerWs, stripAnsi, listModels,
+  type RunnerTask, type RunnerTaskSummary, type RunnerWebSocket, type WsMessage, type RunnerModel
 } from '../../services/claudeRunner';
+import { useSettingsStore } from '../../stores/settingsStore';
 import './claude-task-manager.css';
 
 interface ClaudeTaskManagerProps {
   onClose: () => void;
 }
 
-const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
-
 const ClaudeTaskManager: React.FC<ClaudeTaskManagerProps> = ({ onClose }) => {
+  const WORKING_DIR = useSettingsStore(s => s.workingDir);
+  const globalModel = useSettingsStore(s => s.selectedModel);
   const [tasks, setTasks] = useState<RunnerTaskSummary[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<RunnerTask | null>(null);
@@ -27,6 +28,11 @@ const ClaudeTaskManager: React.FC<ClaudeTaskManagerProps> = ({ onClose }) => {
   const [showNewTask, setShowNewTask] = useState(false);
   const [newPrompt, setNewPrompt] = useState('');
   const [newWorkingDir, setNewWorkingDir] = useState(WORKING_DIR);
+  const [newModel, setNewModel] = useState(globalModel);
+  const [models, setModels] = useState<RunnerModel[]>([]);
+  // Sync defaults when settings change
+  useEffect(() => { setNewWorkingDir(WORKING_DIR); }, [WORKING_DIR]);
+  useEffect(() => { setNewModel(globalModel); }, [globalModel]);
   const [isCreating, setIsCreating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
@@ -52,6 +58,7 @@ const ClaudeTaskManager: React.FC<ClaudeTaskManagerProps> = ({ onClose }) => {
   // Initial load + polling
   useEffect(() => {
     fetchTasks();
+    listModels().then(setModels).catch(() => {});
     refreshTimer.current = setInterval(fetchTasks, 5000);
     return () => {
       if (refreshTimer.current) clearInterval(refreshTimer.current);
@@ -122,7 +129,7 @@ const ClaudeTaskManager: React.FC<ClaudeTaskManagerProps> = ({ onClose }) => {
     if (!newPrompt.trim()) return;
     setIsCreating(true);
     try {
-      const task = await createRunnerTask(newPrompt.trim(), newWorkingDir || undefined);
+      const task = await createRunnerTask(newPrompt.trim(), newWorkingDir || undefined, undefined, newModel || undefined);
       setNewPrompt('');
       setShowNewTask(false);
       await fetchTasks();
@@ -264,6 +271,19 @@ const ClaudeTaskManager: React.FC<ClaudeTaskManagerProps> = ({ onClose }) => {
                     value={newWorkingDir}
                     onChange={e => setNewWorkingDir(e.target.value)}
                   />
+                </div>
+                <div className="ctm-new-task-model">
+                  <Cpu size={12} />
+                  <select
+                    className="ctm-new-task-model-select"
+                    value={newModel}
+                    onChange={e => setNewModel(e.target.value)}
+                  >
+                    <option value="">Default model</option>
+                    {models.map(m => (
+                      <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="ctm-new-task-actions">
                   <button className="ctm-btn ctm-btn--secondary" onClick={() => setShowNewTask(false)}>

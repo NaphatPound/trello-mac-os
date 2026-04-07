@@ -56,6 +56,7 @@ export interface Card {
   priority?: 'critical' | 'high' | 'medium' | 'low';
   taskGroup?: string;
   taskOrder?: number;
+  scheduledAt?: string;
 }
 
 export interface Label {

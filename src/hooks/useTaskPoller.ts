@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useBoardStore } from '../stores/boardStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { getRunnerTaskStatus, createRunnerTask } from '../services/claudeRunner';
 
 const POLL_INTERVAL = 5000;
-const WORKING_DIR = import.meta.env.VITE_CLAUDE_RUNNER_WORKING_DIR || '';
 
 function isInProgressList(title: string): boolean {
   const t = title.toLowerCase().trim();
@@ -20,7 +20,9 @@ function isTodoList(title: string): boolean {
 }
 
 function buildPromptFromCard(card: { title: string; description?: string; checklists: { title: string; items: { text: string; isChecked: boolean }[] }[] }): string {
-  const lines: string[] = [`# Task: ${card.title}`];
+  const lines: string[] = [];
+  lines.push(`Please implement the following task.`);
+  lines.push('', `# Task: ${card.title}`);
   if (card.description) lines.push('', '## Description', card.description);
   if (card.checklists.length > 0) {
     lines.push('', '## Subtasks to complete');
@@ -30,6 +32,9 @@ function buildPromptFromCard(card: { title: string; description?: string; checkl
         lines.push(`- ${item.isChecked ? '[x]' : '[ ]'} ${item.text}`);
       }
     }
+  }
+  if (!card.description && card.checklists.length === 0) {
+    lines.push('', 'Implement this task based on the title. Analyze the codebase, determine what changes are needed, and make them.');
   }
   return lines.join('\n');
 }
@@ -135,7 +140,8 @@ async function promoteNextCard(boardId: string, completedCard: { taskGroup?: str
 
   try {
     updateCard(nextCard.id, { claudeTaskStatus: 'queued' });
-    const task = await createRunnerTask(prompt, WORKING_DIR || undefined);
+    const { workingDir, selectedModel } = useSettingsStore.getState();
+    const task = await createRunnerTask(prompt, workingDir || undefined, undefined, selectedModel || undefined);
     console.log(`[Auto-Promote] Claude task created: ${task.id}, status: ${task.status}`);
     updateCard(nextCard.id, { claudeTaskId: task.id, claudeTaskStatus: task.status });
     addComment(nextCard.id, `🤖 Claude Code task started (ID: ${task.id}).`);
